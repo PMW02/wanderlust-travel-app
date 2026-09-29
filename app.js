@@ -18,7 +18,7 @@ app.use(methodOverride("_method"));
 app.engine("ejs",ejsMate);
 app.use(express.static(path.join(__dirname,"/public")));
 
-const MONGO_URL = "mongodb://127.0.0.1:27017/wanderlust";
+const MONGO_URL = process.env.MONGO_URL || "mongodb://127.0.0.1:27017/wanderlust";
 
 main()
     .then(()=>{
@@ -33,7 +33,7 @@ async function main(){
 }
 
 const sessionOptions = {
-    secret : "mysupersecretcode",
+    secret : process.env.SESSION_SECRET || "development-secret",
     resave : false,
     saveUninitialized : true,
     cookie : {
@@ -69,6 +69,8 @@ app.use((err,req,res,next)=>{ //Catch error
     //res.status(statusCode).send(message);
 });
 
-app.listen(8181, ()=>{
-    console.log("Server is listening on port 8181");
+const PORT = process.env.PORT || 8181;
+
+app.listen(PORT, "0.0.0.0", ()=>{
+    console.log(`Server is listening on port ${PORT}`);
 });
