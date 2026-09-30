@@ -71,6 +71,10 @@ app.use((err,req,res,next)=>{ //Catch error
 
 const PORT = process.env.PORT || 8181;
 
-app.listen(PORT, "0.0.0.0", ()=>{
-    console.log(`Server is listening on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server is listening on port ${PORT}`);
+    });
+}
+
+module.exports = app;

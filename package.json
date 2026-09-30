@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node app.js",
-    "test": "echo \"Tests will be added in the next step\""
+    "test": "jest --runInBand"
   },
   "keywords": [],
   "author": "",
