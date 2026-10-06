@@ -56,28 +56,70 @@ pipeline {
         }
 
         stage('Deploy') {
-            steps {
-                sh '''
-                    echo "Deploying Wanderlust..."
+    steps {
+        sh '''
+            echo "Deploying Wanderlust..."
 
-                    docker pull ${IMAGE_NAME}:latest
+            docker pull ${IMAGE_NAME}:latest
 
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
+            # Save currently running image for rollback
+            OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' ${CONTAINER_NAME} 2>/dev/null || true)
+
+            docker stop ${CONTAINER_NAME} || true
+            docker rm ${CONTAINER_NAME} || true
+
+            docker run -d \
+                --name ${CONTAINER_NAME} \
+                --restart unless-stopped \
+                --env-file ${ENV_FILE} \
+                -p 8181:8181 \
+                ${IMAGE_NAME}:latest
+
+            echo "Waiting for application to start..."
+            sleep 10
+
+            echo "Running health check..."
+
+            if curl --fail --silent http://127.0.0.1:8181/health > /dev/null; then
+                echo "Health check PASSED."
+                echo "Deployment successful."
+            else
+                echo "Health check FAILED."
+                echo "Rolling back..."
+
+                docker logs --tail 50 ${CONTAINER_NAME} || true
+
+                docker stop ${CONTAINER_NAME} || true
+                docker rm ${CONTAINER_NAME} || true
+
+                if [ -n "$OLD_IMAGE" ]; then
+                    echo "Starting previous image: $OLD_IMAGE"
 
                     docker run -d \
                         --name ${CONTAINER_NAME} \
                         --restart unless-stopped \
                         --env-file ${ENV_FILE} \
                         -p 8181:8181 \
-                        ${IMAGE_NAME}:latest
+                        ${OLD_IMAGE}
 
-                    echo "Deployment completed."
+                    sleep 10
 
-                    docker ps --filter name=${CONTAINER_NAME}
-                '''
-            }
-        }
+                    if curl --fail --silent http://127.0.0.1:8181/health > /dev/null; then
+                        echo "Rollback successful."
+                    else
+                        echo "Rollback health check FAILED."
+                        exit 1
+                    fi
+                else
+                    echo "No previous image available for rollback."
+                    exit 1
+                fi
+            fi
+
+            docker ps --filter name=${CONTAINER_NAME}
+        '''
+    }
+}
     }
 
     post {
