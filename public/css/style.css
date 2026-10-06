@@ -12,7 +12,7 @@ body{
 
 .navbar{
     height:4rem;
-    background-color: white;
+    background-color: rgb(231, 81, 81);
 }
 .fa-compass{
     color:#fe424d;
