@@ -25,8 +25,10 @@ pipeline {
                     echo "Building Wanderlust image..."
 
                     docker build \
-                        -t ${IMAGE_REPO}:${BUILD_TAG} \
+                        -t ${IMAGE_REPO}:candidate \
                         .
+
+                    echo "Docker build completed."
                 '''
             }
         }
@@ -41,16 +43,6 @@ pipeline {
                     | docker login \
                         --username AWS \
                         --password-stdin ${ECR_REGISTRY}
-                '''
-            }
-        }
-
-        stage('Push Build Image') {
-            steps {
-                sh '''
-                    echo "Pushing build image..."
-
-                    docker push ${IMAGE_REPO}:${BUILD_TAG}
                 '''
             }
         }
@@ -73,24 +65,25 @@ pipeline {
                         echo "Previous latest saved as rollback."
 
                     else
-                        echo "No existing latest image. Skipping rollback."
+                        echo "No existing latest image found."
+                        echo "Skipping rollback preparation."
                     fi
                 '''
             }
         }
 
-        stage('Promote New Image') {
+        stage('Promote Candidate') {
             steps {
                 sh '''
-                    echo "Promoting build image to latest..."
-
-                    docker pull ${IMAGE_REPO}:${BUILD_TAG}
+                    echo "Promoting candidate image to latest..."
 
                     docker tag \
-                        ${IMAGE_REPO}:${BUILD_TAG} \
+                        ${IMAGE_REPO}:candidate \
                         ${IMAGE_REPO}:latest
 
                     docker push ${IMAGE_REPO}:latest
+
+                    echo "New image pushed as latest."
                 '''
             }
         }
@@ -158,6 +151,18 @@ pipeline {
                     fi
 
                     docker ps --filter name=${CONTAINER_NAME}
+                '''
+            }
+        }
+
+        stage('Cleanup Local Images') {
+            steps {
+                sh '''
+                    echo "Cleaning temporary local images..."
+
+                    docker rmi ${IMAGE_REPO}:candidate || true
+
+                    echo "Local cleanup completed."
                 '''
             }
         }
